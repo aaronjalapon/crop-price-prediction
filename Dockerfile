@@ -9,10 +9,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY requirements_streamlit.txt .
+COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements_streamlit.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY app_v2.py .

@@ -26,8 +26,8 @@ fi
 
 # Install dependencies
 echo ""
-echo "✓ Installing dependencies..."
-pip install -q -r requirements_streamlit.txt
+echo "📦 Installing dependencies..."
+pip install -q -r requirements.txt
 
 # Extract and save metadata
 echo ""

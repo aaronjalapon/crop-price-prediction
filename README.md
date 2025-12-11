@@ -42,7 +42,7 @@ The solution consists of:
 
 2.  **Install dependencies**
     ```bash
-    pip install -r requirements_streamlit.txt
+    pip install -r requirements.txt
     ```
 
 3.  **Run the application**
@@ -74,7 +74,7 @@ crop-price-prediction/
 ├── random_forest_model.joblib   # Trained Random Forest model
 ├── metadata_utils.py            # Utilities for feature encoding
 ├── extract_metadata.py          # Script to extract metadata from data
-├── requirements_streamlit.txt   # App dependencies
+├── requirements.txt             # App dependencies
 ├── Dockerfile                   # Docker configuration
 ├── docker-compose.yml           # Docker Compose configuration
 ├── DEPLOYMENT.md                # Detailed deployment guides

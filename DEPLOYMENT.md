@@ -5,11 +5,12 @@
 ### Local Deployment
 
 ```bash
-# 1. Install dependencies
-pip install -r requirements_streamlit.txt
-
-# 2. Run the app
+# 1. Local Testing
+Ensure the app runs locally before deploying.
+```bash
+pip install -r requirements.txt
 streamlit run app_v2.py
+```
 
 # 3. Open browser
 # Navigate to: http://localhost:8501
@@ -50,7 +51,7 @@ git push -u origin main
 - `app_v2.py` - Main application
 - `metadata_utils.py` - Helper utilities
 - `random_forest_model.joblib` - Trained model
-- `requirements_streamlit.txt` - Dependencies
+- `requirements.txt` - Dependencies
 
 ---
 
@@ -237,7 +238,7 @@ az container show --resource-group myResourceGroup \
 ## ✅ Pre-Deployment Checklist
 
 - [ ] Model file (`random_forest_model.joblib`) exists
-- [ ] All dependencies in `requirements_streamlit.txt`
+- [ ] All dependencies in `requirements.txt`
 - [ ] App runs locally: `streamlit run app_v2.py`
 - [ ] No hardcoded secrets or API keys
 - [ ] `.gitignore` configured properly
