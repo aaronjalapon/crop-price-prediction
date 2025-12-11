@@ -1,0 +1,23 @@
+name: Deploy to Streamlit Cloud
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Deploy to Streamlit Cloud
+        run: |
+          # This requires Streamlit Cloud authentication
+          # See: https://docs.streamlit.io/streamlit-cloud/deploy-your-app
+          echo "To deploy to Streamlit Cloud:"
+          echo "1. Go to https://share.streamlit.io"
+          echo "2. Sign in with GitHub"
+          echo "3. Select this repository"
+          echo "4. Point to app_v2.py"
+          echo "5. Click Deploy"

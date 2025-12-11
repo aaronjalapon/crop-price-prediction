@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  crop-price-app:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+    volumes:
+      - ./app_v2.py:/app/app_v2.py
+      - ./metadata_utils.py:/app/metadata_utils.py
+      - ./random_forest_model.joblib:/app/random_forest_model.joblib
+      - ./.streamlit:/app/.streamlit
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
