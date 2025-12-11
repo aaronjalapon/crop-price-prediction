@@ -73,7 +73,6 @@ crop-price-prediction/
 ├── Price_Prediction.ipynb       # Jupyter notebook for EDA and training
 ├── random_forest_model.joblib   # Trained Random Forest model
 ├── metadata_utils.py            # Utilities for feature encoding
-├── extract_metadata.py          # Script to extract metadata from data
 ├── requirements.txt             # App dependencies
 ├── Dockerfile                   # Docker configuration
 ├── docker-compose.yml           # Docker Compose configuration
