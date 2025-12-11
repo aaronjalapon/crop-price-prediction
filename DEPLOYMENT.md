@@ -9,7 +9,7 @@
 Ensure the app runs locally before deploying.
 ```bash
 pip install -r requirements.txt
-streamlit run app_v2.py
+streamlit run app.py
 ```
 
 # 3. Open browser
@@ -41,14 +41,14 @@ git push -u origin main
 # 2. Go to https://share.streamlit.io
 # 3. Click "New app"
 # 4. Select your repository
-# 5. Set main file to: app_v2.py
+# 5. Set main file to: app.py
 # 6. Deploy
 
 # Your app will be live at: https://YOUR_USERNAME-crop-price-prediction.streamlit.app
 ```
 
 **Important Files:**
-- `app_v2.py` - Main application
+- `app.py` - Main application
 - `metadata_utils.py` - Helper utilities
 - `random_forest_model.joblib` - Trained model
 - `requirements.txt` - Dependencies
@@ -127,7 +127,7 @@ heroku open
 
 **Procfile Example:**
 ```
-web: streamlit run app_v2.py --server.port=$PORT
+web: streamlit run app.py --server.port=$PORT
 ```
 
 ---
@@ -239,7 +239,7 @@ az container show --resource-group myResourceGroup \
 
 - [ ] Model file (`random_forest_model.joblib`) exists
 - [ ] All dependencies in `requirements.txt`
-- [ ] App runs locally: `streamlit run app_v2.py`
+- [ ] App runs locally: `streamlit run app.py`
 - [ ] No hardcoded secrets or API keys
 - [ ] `.gitignore` configured properly
 - [ ] README updated with instructions
@@ -289,7 +289,7 @@ lsof -i :8501
 kill -9 <PID>
 
 # Or use different port
-streamlit run app_v2.py --server.port=8502
+streamlit run app.py --server.port=8502
 ```
 
 ### "Model file not found"
@@ -313,7 +313,7 @@ docker run -m 2g crop-price-app
 ### "Slow predictions"
 ```bash
 # Profile the code
-streamlit run app_v2.py --logger.level=debug
+streamlit run app.py --logger.level=debug
 
 # Optimize model loading (use caching)
 # Reduce model complexity if needed

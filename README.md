@@ -47,7 +47,7 @@ The solution consists of:
 
 3.  **Run the application**
     ```bash
-    streamlit run app_v2.py
+    streamlit run app.py
     ```
 
 4.  **Access the app**
@@ -69,7 +69,7 @@ docker run -p 8501:8501 crop-price-app
 
 ```
 crop-price-prediction/
-├── app_v2.py                    # Main Streamlit application
+├── app.py                       # Main Streamlit application
 ├── Price_Prediction.ipynb       # Jupyter notebook for EDA and training
 ├── random_forest_model.joblib   # Trained Random Forest model
 ├── metadata_utils.py            # Utilities for feature encoding

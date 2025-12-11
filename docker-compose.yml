@@ -10,7 +10,7 @@ services:
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
       - STREAMLIT_SERVER_HEADLESS=true
     volumes:
-      - ./app_v2.py:/app/app_v2.py
+      - ./app.py:/app/app.py
       - ./metadata_utils.py:/app/metadata_utils.py
       - ./random_forest_model.joblib:/app/random_forest_model.joblib
       - ./.streamlit:/app/.streamlit

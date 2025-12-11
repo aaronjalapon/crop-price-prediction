@@ -19,5 +19,5 @@ jobs:
           echo "1. Go to https://share.streamlit.io"
           echo "2. Sign in with GitHub"
           echo "3. Select this repository"
-          echo "4. Point to app_v2.py"
+          echo "4. Point to app.py"
           echo "5. Click Deploy"
