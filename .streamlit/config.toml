@@ -1,26 +1,7 @@
-[client]
-headless = true
-logger.level = info
-
-[logger]
-level = info
-
-[server]
-headless = true
-port = 8501
-enableXsrfProtection = false
-enableCORS = false
-enableWebsocketCompression = true
-maxMessageSize = 200
-runOnSave = false
-
-[browser]
-serverAddress = localhost
-gatherUsageStats = false
-
 [theme]
-primaryColor = "#2d5016"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#f0f2f6"
-textColor = "#262730"
+base = "light"
+primaryColor = "#2E7D32"
+backgroundColor = "hsla(50, 29%, 71%, 1.00)"
+secondaryBackgroundColor = "hsla(49, 83%, 80%, 1.00)"
+textColor = "#1B5E20"
 font = "sans serif"
