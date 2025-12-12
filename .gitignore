@@ -142,10 +142,7 @@ Thumbs.db
 data/
 datasets/
 
-# Model artifacts (optional - remove if you want to track)
-*.joblib
-*.pickle
-*.pkl
+
 
 # Temporary files
 tmp/
