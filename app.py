@@ -498,12 +498,12 @@ if model is None:
 # Header
 col1, col2 = st.columns([3, 1])
 with col1:
-    st.markdown("<div class='main-header'><i class='fa-solid fa-wheat-awn'></i> Crop Price Prediction Model</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-header'><i class='fa-solid fa-wheat-awn'></i>Crop Price Prediction Model</div>", unsafe_allow_html=True)
     st.markdown("**Interactive Forecasting Tool for Senegal Crop Markets**")
 with col2:
     if feature_names:
-        st.metric("Model Features", len(feature_names), "+0")
-    st.markdown("<div class='info-box'><i class='fa-solid fa-robot'></i> Random Forest</div>", unsafe_allow_html=True)
+        st.metric("Model Features", len(feature_names))
+    st.markdown("<div><i class='fa-solid fa-robot'></i>Random Forest</div>", unsafe_allow_html=True)
 
 st.divider()
 
@@ -566,7 +566,7 @@ st.divider()
 # Temporal Parameters
 st.markdown("### <i class='fa-solid fa-calendar-days'></i> Temporal Parameters", unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     selected_date = st.date_input(
@@ -580,9 +580,11 @@ with col1:
 
 with col2:
     st.metric("Year", year)
-    st.metric("Month", month)
+    
 
-with col3:
+with col3:st.metric("Month", month)
+
+with col4:
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     st.metric("Day of Week", days[day_of_week])
 
@@ -591,13 +593,9 @@ st.divider()
 # Prediction Section
 st.markdown("### <i class='fa-solid fa-crystal-ball'></i> Prediction Results", unsafe_allow_html=True)
 
-col_predict, col_info = st.columns([3, 1])
+predict_button = st.button("Generate Prediction", use_container_width=True, type="primary")
 
-with col_predict:
-    predict_button = st.button("Generate Prediction", use_container_width=True, type="primary")
-
-with col_info:
-    st.info("Click the button to generate a price prediction based on your selected parameters.")
+st.info("Click the button to generate a price prediction based on your selected parameters.")
 
 if predict_button:
     with st.spinner("🔄 Making prediction..."):
