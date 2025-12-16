@@ -503,7 +503,7 @@ with col1:
 with col2:
     if feature_names:
         st.metric("Model Features", len(feature_names))
-    st.markdown("<div><i class='fa-solid fa-robot'></i>Random Forest</div>", unsafe_allow_html=True)
+    st.markdown("<div><i class='fa-solid fa-robot'></i> Random Forest</div>", unsafe_allow_html=True)
 
 st.divider()
 
@@ -582,7 +582,8 @@ with col2:
     st.metric("Year", year)
     
 
-with col3:st.metric("Month", month)
+with col3:
+    st.metric("Month", month)
 
 with col4:
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -595,10 +596,14 @@ st.markdown("### <i class='fa-solid fa-crystal-ball'></i> Prediction Results", u
 
 predict_button = st.button("Generate Prediction", use_container_width=True, type="primary")
 
-st.info("Click the button to generate a price prediction based on your selected parameters.")
+st.markdown("""
+    <div class="info-box">
+        <i class="fa-solid fa-circle-info"></i> Click the button to generate a price prediction based on your selected parameters.
+    </div>
+""", unsafe_allow_html=True)
 
 if predict_button:
-    with st.spinner("🔄 Making prediction..."):
+    with st.spinner("Making prediction..."):
         # Create input
         if feature_names:
             input_df = create_prediction_input(
