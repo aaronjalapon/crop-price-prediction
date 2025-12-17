@@ -69,11 +69,12 @@ st.markdown("""
 
 @st.cache_resource
 def load_model():
-    """Load the trained Random Forest model"""
+    """Load the trained XGBoost model bundle"""
     try:
-        return joblib.load('random_forest_model.joblib')
+        bundle = joblib.load('XGBoost_Price_Prediction_final.joblib')
+        return bundle
     except FileNotFoundError:
-        st.error("Model file 'random_forest_model.joblib' not found!")
+        st.error("Model file 'XGBoost_Price_Prediction_final.joblib' not found!")
         st.info("Please ensure the model file is in the same directory as this app.")
         return None
 
@@ -87,28 +88,106 @@ def load_metadata():
     except Exception as e:
         st.warning(f"Could not load metadata: {e}")
     
-    # Return default metadata if file doesn't exist
+    # Return metadata matching the actual dataset used for training
     return {
-        'cmname': ["Rice", "Maize", "Millet", "Sorghum", "Wheat", "Groundnut",
-                  "Cowpea", "Sesame", "Cotton", "Tomato", "Onion", "Cabbage"],
-        'unit': ["kg", "bag", "bunch", "crate", "liter", "piece", "basket"],
-        'category': ["Cereals", "Pulses", "Oilseeds", "Vegetables", "Fruits", "Cash Crops"],
-        'admname': ["Dakar", "Thiès", "Kaolack", "Tambacounda", "Saint-Louis",
-                   "Fatick", "Kolda", "Ziguinchor", "Sédhiou", "Kaffrine"],
-        'mktname': ["Grand Marché", "Reuzel Market", "Leona", "Ngaliène",
-                   "Medina", "Icotaf", "Caritas", "Diamniadio"]
+        'cmname': [
+            "Maize (local) - Retail",
+            "Millet - Retail",
+            "Rice (imported) - Retail",
+            "Rice (local) - Retail",
+            "Sorghum - Retail"
+        ],
+        'unit': ["KG"],  # Default unit from dataset
+        'category': ["cereals and tubers"],  # Default category from dataset
+        'admname': [
+            "Dakar",
+            "Diourbel",
+            "Fatick",
+            "Kaffrine",
+            "Kaolack",
+            "Kedougou",
+            "Kolda",
+            "Louga",
+            "Matam",
+            "Saint louis",
+            "Sedhiou",
+            "Tambacounda",
+            "Thies",
+            "Ziguinchor"
+        ],
+        'mktname': [
+            "Bambey",
+            "Bignona",
+            "Birkelane",
+            "Castors",
+            "Dagana",
+            "Dakar",
+            "Diakhao",
+            "Diama Gadio",
+            "Diaobe",
+            "Dioli Mandakh",
+            "Diourbel",
+            "Fatick",
+            "Gossas",
+            "Gouille Mbeuth",
+            "Gueule Tapee",
+            "Kaffrine",
+            "Kaolack",
+            "Kedougou",
+            "Keur I. Yacine",
+            "Kolda",
+            "Koungueul",
+            "Kouthiaba",
+            "Louga",
+            "Mabo",
+            "Mako",
+            "Matam",
+            "Mbafaye",
+            "Mbar",
+            "Mereto",
+            "Missirah",
+            "Mpal",
+            "N'Doffane",
+            "Ndiagne",
+            "Ndindy",
+            "Ndrame Escale",
+            "Orkodiere",
+            "Ourossogui",
+            "Oussouye",
+            "Passy",
+            "Porokhane",
+            "Sagatta",
+            "Saint-Louis",
+            "Saint-Maur",
+            "Salémata",
+            "Sandjara",
+            "Sare Yoba",
+            "Sedhiou",
+            "Tambacounda",
+            "Thiaroye",
+            "Thies",
+            "Thille Boubacar",
+            "Thilmakha",
+            "Thiodaye",
+            "Tilene",
+            "Touba",
+            "Touba Toul",
+            "Zigiunchor"
+        ]
     }
 
 @st.cache_data
 def get_model_features():
-    """Extract feature names from the model"""
-    model = load_model()
-    if model is None:
+    """Extract feature names from the model bundle"""
+    bundle = load_model()
+    if bundle is None:
         return None
     
     try:
-        if hasattr(model, 'feature_names_in_'):
-            return list(model.feature_names_in_)
+        if 'feature_names' in bundle:
+            return bundle['feature_names']
+        elif hasattr(bundle.get('model'), 'feature_names_in_'):
+            return list(bundle['model'].feature_names_in_)
         else:
             return None
     except:
@@ -152,15 +231,41 @@ def create_prediction_input(crop_name, unit, category, admin_region, market_name
             input_dict['country_Senegal'] = 1
         
         # Set numerical features
-        numerical_features = {
-            'year': year,
-            'month': month,
-            'day_of_week': day_of_week,
-        }
+        if 'year' in input_dict:
+            input_dict['year'] = year
+        if 'month' in input_dict:
+            input_dict['month'] = month
+        if 'day_of_week' in input_dict:
+            input_dict['day_of_week'] = day_of_week
         
-        for feat_name, feat_value in numerical_features.items():
-            if feat_name in input_dict:
-                input_dict[feat_name] = feat_value
+        # =============================================
+        # CRITICAL: Set cyclical encoding features
+        # These capture the circular nature of time
+        # =============================================
+        if 'month_sin' in input_dict:
+            input_dict['month_sin'] = np.sin(2 * np.pi * month / 12)
+        if 'month_cos' in input_dict:
+            input_dict['month_cos'] = np.cos(2 * np.pi * month / 12)
+        if 'dow_sin' in input_dict:
+            input_dict['dow_sin'] = np.sin(2 * np.pi * day_of_week / 7)
+        if 'dow_cos' in input_dict:
+            input_dict['dow_cos'] = np.cos(2 * np.pi * day_of_week / 7)
+        
+        # =============================================
+        # CRITICAL: Set lag features with realistic defaults
+        # These are the most important features for the model!
+        # Values are in log scale (log1p transformed prices)
+        # =============================================
+        # Default log_price ~6.0 corresponds to ~403 XOF (reasonable baseline)
+        # Adjust based on crop type for more realistic predictions
+        default_log_price = 6.0
+        
+        if 'price_lag_12m' in input_dict:
+            input_dict['price_lag_12m'] = default_log_price
+        if 'yoy_change' in input_dict:
+            input_dict['yoy_change'] = 0.02  # Small positive trend (~2% annual increase)
+        if 'rolling_std_12m' in input_dict:
+            input_dict['rolling_std_12m'] = 0.15  # Typical price volatility
         
         # Create DataFrame and ensure correct column order
         input_df = pd.DataFrame([input_dict])
@@ -172,35 +277,50 @@ def create_prediction_input(crop_name, unit, category, admin_region, market_name
         st.error(f"Error creating prediction input: {e}")
         return None
 
-def make_prediction(model, input_df):
+def make_prediction(model, input_df, scaler=None):
     """
-    Make a prediction with the model and calculate confidence intervals.
+    Make a prediction with the XGBoost model and calculate confidence intervals.
     
     Returns:
         dict: Contains predicted_price, ci_lower, ci_upper, confidence_score, tree_predictions
     """
     try:
+        # Scale input if scaler is provided
+        if scaler is not None:
+            input_scaled = scaler.transform(input_df)
+        else:
+            input_scaled = input_df.values
+        
         # Make prediction (log-space)
-        log_price = model.predict(input_df)[0]
+        log_price = model.predict(input_scaled)[0]
         predicted_price = np.expm1(log_price)
         
-        # Calculate confidence interval using individual tree predictions
-        tree_predictions = np.array([
-            tree.predict(input_df.values)[0] 
-            for tree in model.estimators_
-        ])
+        # For XGBoost, calculate confidence interval using bootstrap-like approach
+        # Get predictions from each boosting iteration
+        n_estimators = model.n_estimators
+        tree_predictions = []
+        
+        # Use prediction with different ntree_limit to simulate ensemble variance
+        for i in range(10, n_estimators + 1, max(1, n_estimators // 20)):
+            pred = model.predict(input_scaled, iteration_range=(0, i))[0]
+            tree_predictions.append(pred)
+        
+        tree_predictions = np.array(tree_predictions)
         
         mean_pred = np.mean(tree_predictions)
         std_pred = np.std(tree_predictions)
-        margin_error = 1.96 * std_pred  # 95% CI
         
-        ci_lower = np.expm1(mean_pred - margin_error)
-        ci_upper = np.expm1(mean_pred + margin_error)
+        # Use a more conservative estimate for XGBoost CI
+        # Based on typical prediction uncertainty
+        margin_error = 1.96 * max(std_pred, 0.05)  # Minimum 5% uncertainty
+        
+        ci_lower = np.expm1(log_price - margin_error)
+        ci_upper = np.expm1(log_price + margin_error)
         
         # Calculate confidence score (inverse of relative std)
         confidence_score = max(0, min(100, 100 * (1 - (std_pred / abs(mean_pred) if mean_pred != 0 else 0))))
         
-        # Convert tree predictions to price space
+        # Convert tree predictions to price space for visualization
         tree_predictions_price = np.expm1(tree_predictions)
         
         return {
@@ -208,7 +328,7 @@ def make_prediction(model, input_df):
             'ci_lower': ci_lower,
             'ci_upper': ci_upper,
             'confidence_score': confidence_score,
-            'n_trees': len(model.estimators_),
+            'n_estimators': n_estimators,
             'std_error': std_pred,
             'tree_predictions': tree_predictions_price
         }
@@ -296,16 +416,16 @@ def create_confidence_gauge(result):
     return fig
 
 def create_tree_predictions_histogram(result):
-    """Create a histogram of individual tree predictions."""
+    """Create a histogram of estimator predictions."""
     fig = go.Figure()
     
-    # Add histogram of tree predictions
+    # Add histogram of estimator predictions
     fig.add_trace(go.Histogram(
         x=result['tree_predictions'],
         nbinsx=30,
-        name='Tree Predictions',
+        name='Estimator Predictions',
         marker=dict(color='rgba(100, 150, 255, 0.7)', line=dict(color='rgb(100, 150, 255)', width=1)),
-        hovertemplate='<b>Price Range</b><br>%{x:,.0f} XOF<br>Count: %{y} trees<extra></extra>'
+        hovertemplate='<b>Price Range</b><br>%{x:,.0f} XOF<br>Count: %{y} estimators<extra></extra>'
     ))
     
     # Add vertical lines for key values
@@ -334,9 +454,9 @@ def create_tree_predictions_histogram(result):
     )
     
     fig.update_layout(
-        title='<b>Distribution of Tree Predictions</b>',
+        title='<b>Distribution of Estimator Predictions</b>',
         xaxis_title='Predicted Price (XOF)',
-        yaxis_title='Number of Trees',
+        yaxis_title='Number of Estimators',
         hovermode='x',
         height=400,
         template='plotly_white',
@@ -349,28 +469,84 @@ def create_tree_predictions_histogram(result):
     return fig
 
 def create_time_series_forecast(model, input_df, crop_name, admin_region, market_name, 
-                                base_date, feature_names, metadata):
+                                base_date, feature_names, metadata, scaler=None):
     """
     Create a time series forecast showing predictions across days, weeks, months, and year.
+    Uses iterative forecasting with proper cyclical encodings and lag feature updates.
     """
     from datetime import timedelta
+    
+    def predict_with_scaler(model, input_data, scaler):
+        """Helper to predict with optional scaling."""
+        if scaler is not None:
+            scaled_data = scaler.transform(input_data)
+            return model.predict(scaled_data)[0]
+        return model.predict(input_data.values)[0]
+    
+    def get_cyclical_month(month):
+        """Calculate cyclical encoding for month."""
+        return np.sin(2 * np.pi * month / 12), np.cos(2 * np.pi * month / 12)
+    
+    def get_cyclical_dow(dow):
+        """Calculate cyclical encoding for day of week."""
+        return np.sin(2 * np.pi * dow / 7), np.cos(2 * np.pi * dow / 7)
+    
+    def update_input_features(input_data, forecast_date, feature_names):
+        """Update all temporal and cyclical features for a forecast date."""
+        month = forecast_date.month
+        day_of_week = forecast_date.weekday()
+        year = forecast_date.year
+        
+        if 'year' in feature_names:
+            input_data.loc[0, 'year'] = year
+        if 'month' in feature_names:
+            input_data.loc[0, 'month'] = month
+        if 'day_of_week' in feature_names:
+            input_data.loc[0, 'day_of_week'] = day_of_week
+        
+        # Update cyclical features - CRITICAL for seasonal patterns
+        month_sin, month_cos = get_cyclical_month(month)
+        dow_sin, dow_cos = get_cyclical_dow(day_of_week)
+        
+        if 'month_sin' in feature_names:
+            input_data.loc[0, 'month_sin'] = month_sin
+        if 'month_cos' in feature_names:
+            input_data.loc[0, 'month_cos'] = month_cos
+        if 'dow_sin' in feature_names:
+            input_data.loc[0, 'dow_sin'] = dow_sin
+        if 'dow_cos' in feature_names:
+            input_data.loc[0, 'dow_cos'] = dow_cos
+        
+        return input_data
     
     # Extract base input values from the input_df
     base_input = input_df.copy()
     
+    # Get initial lag values
+    initial_price_lag_12m = base_input['price_lag_12m'].values[0] if 'price_lag_12m' in feature_names else 6.0
+    initial_yoy_change = base_input['yoy_change'].values[0] if 'yoy_change' in feature_names else 0.02
+    initial_rolling_std = base_input['rolling_std_12m'].values[0] if 'rolling_std_12m' in feature_names else 0.15
+    
+    # Make initial prediction to get current price estimate
+    initial_pred = predict_with_scaler(model, base_input, scaler)
+    current_log_price = initial_pred
+    
+    # Store predictions for updating lags
+    monthly_predictions = {0: current_log_price}
+    
     # Generate time periods
     forecast_data = []
     
+    # =============================================
     # Daily forecasts (next 30 days)
+    # =============================================
     for i in range(1, 31):
         forecast_date = base_date + timedelta(days=i)
-        day_of_week = forecast_date.weekday()
         
         daily_input = base_input.copy()
-        if 'day_of_week' in feature_names:
-            daily_input.loc[0, 'day_of_week'] = day_of_week
+        daily_input = update_input_features(daily_input, forecast_date, feature_names)
         
-        pred = model.predict(daily_input.values)[0]
+        pred = predict_with_scaler(model, daily_input, scaler)
         price = np.expm1(pred)
         forecast_data.append({
             'date': forecast_date,
@@ -380,19 +556,17 @@ def create_time_series_forecast(model, input_df, crop_name, admin_region, market
             'days_ahead': i
         })
     
+    # =============================================
     # Weekly forecasts (next 12 weeks)
+    # =============================================
     for i in range(1, 13):
         forecast_date = base_date + timedelta(weeks=i)
-        day_of_week = forecast_date.weekday()
         week_num = forecast_date.isocalendar()[1]
         
         weekly_input = base_input.copy()
-        if 'month' in feature_names:
-            weekly_input.loc[0, 'month'] = forecast_date.month
-        if 'day_of_week' in feature_names:
-            weekly_input.loc[0, 'day_of_week'] = day_of_week
+        weekly_input = update_input_features(weekly_input, forecast_date, feature_names)
         
-        pred = model.predict(weekly_input.values)[0]
+        pred = predict_with_scaler(model, weekly_input, scaler)
         price = np.expm1(pred)
         forecast_data.append({
             'date': forecast_date,
@@ -402,41 +576,61 @@ def create_time_series_forecast(model, input_df, crop_name, admin_region, market
             'days_ahead': i * 7
         })
     
-    # Monthly forecasts (next 12 months)
+    # =============================================
+    # Monthly forecasts (next 12 months) - update lag features
+    # =============================================
     for i in range(1, 13):
         forecast_date = base_date + timedelta(days=30*i)
-        month_num = forecast_date.month
         
         monthly_input = base_input.copy()
-        if 'month' in feature_names:
-            monthly_input.loc[0, 'month'] = month_num
-        if 'day_of_week' in feature_names:
-            monthly_input.loc[0, 'day_of_week'] = forecast_date.weekday()
+        monthly_input = update_input_features(monthly_input, forecast_date, feature_names)
         
-        pred = model.predict(monthly_input.values)[0]
+        # Update lag features for longer forecasts
+        if 'yoy_change' in feature_names:
+            trend_factor = 0.02 * i / 12  # Gradual trend increase
+            monthly_input.loc[0, 'yoy_change'] = initial_yoy_change + trend_factor
+        
+        pred = predict_with_scaler(model, monthly_input, scaler)
         price = np.expm1(pred)
+        
+        # Store prediction for future reference
+        monthly_predictions[i] = pred
+        
         forecast_data.append({
             'date': forecast_date,
             'period': 'Monthly',
-            'label': forecast_date.strftime('%b'),
+            'label': forecast_date.strftime('%b %Y'),
             'price': price,
             'days_ahead': 30 * i
         })
     
-    # Yearly forecasts (next 5 years)
+    # =============================================
+    # Yearly forecasts (next 5 years) - significant lag evolution
+    # =============================================
     for i in range(1, 6):
         forecast_date = base_date + timedelta(days=365*i)
         
         yearly_input = base_input.copy()
-        if 'year' in feature_names:
-            yearly_input.loc[0, 'year'] = forecast_date.year
-        if 'month' in feature_names:
-            yearly_input.loc[0, 'month'] = forecast_date.month
-        if 'day_of_week' in feature_names:
-            yearly_input.loc[0, 'day_of_week'] = forecast_date.weekday()
+        yearly_input = update_input_features(yearly_input, forecast_date, feature_names)
         
-        pred = model.predict(yearly_input.values)[0]
+        # Update lag features with iterative predictions
+        if 'price_lag_12m' in feature_names:
+            if 12 in monthly_predictions:
+                yearly_input.loc[0, 'price_lag_12m'] = monthly_predictions[12]
+            else:
+                yearly_input.loc[0, 'price_lag_12m'] = initial_price_lag_12m + (0.02 * i)
+        
+        if 'yoy_change' in feature_names:
+            yearly_input.loc[0, 'yoy_change'] = initial_yoy_change * (0.9 ** i)
+        
+        if 'rolling_std_12m' in feature_names:
+            yearly_input.loc[0, 'rolling_std_12m'] = initial_rolling_std * (1 + 0.1 * i)
+        
+        pred = predict_with_scaler(model, yearly_input, scaler)
         price = np.expm1(pred)
+        
+        monthly_predictions[i * 12] = pred
+        
         forecast_data.append({
             'date': forecast_date,
             'period': 'Yearly',
@@ -448,9 +642,19 @@ def create_time_series_forecast(model, input_df, crop_name, admin_region, market
     # Create figure
     fig = go.Figure()
     
-    # Add traces for each period type
+    # Add current price reference line
+    current_price_actual = np.expm1(current_log_price)
+    fig.add_hline(
+        y=current_price_actual,
+        line_dash="dash",
+        line_color="gray",
+        annotation_text=f"Current: {current_price_actual:,.0f} XOF",
+        annotation_position="right"
+    )
+    
+    # Add traces for each period type with distinct colors
     periods = ['Daily', 'Weekly', 'Monthly', 'Yearly']
-    colors = ['rgb(70, 130, 180)', 'rgb(100, 150, 200)', 'rgb(144, 202, 249)', 'rgb(176, 224, 230)']
+    colors = ['rgb(70, 130, 180)', 'rgb(34, 139, 34)', 'rgb(148, 103, 189)', 'rgb(214, 39, 40)']
     
     for period, color in zip(periods, colors):
         period_data = [d for d in forecast_data if d['period'] == period]
@@ -488,12 +692,16 @@ def create_time_series_forecast(model, input_df, crop_name, admin_region, market
 # ============================================================================
 
 # Load resources
-model = load_model()
+bundle = load_model()
 metadata = load_metadata()
 feature_names = get_model_features()
 
-if model is None:
+if bundle is None:
     st.stop()
+
+# Extract model components from bundle
+model = bundle['model']
+scaler = bundle.get('scaler', None)
 
 # Header
 col1, col2 = st.columns([3, 1])
@@ -503,7 +711,7 @@ with col1:
 with col2:
     if feature_names:
         st.metric("Model Features", len(feature_names))
-    st.markdown("<div><i class='fa-solid fa-robot'></i> Random Forest</div>", unsafe_allow_html=True)
+    st.markdown("<div><i class='fa-solid fa-robot'></i> XGBoost</div>", unsafe_allow_html=True)
 
 st.divider()
 
@@ -623,7 +831,7 @@ if predict_button:
         
         if input_df is not None:
             # Make prediction
-            result = make_prediction(model, input_df)
+            result = make_prediction(model, input_df, scaler)
             
             if result is not None:
                 # Display results
@@ -671,7 +879,7 @@ if predict_button:
                             {result['confidence_score']:.1f}%
                         </div>
                         <div style='font-size: 0.8em; color: #999;'>
-                            Trees: {result['n_trees']}<br>
+                            Estimators: {result['n_estimators']}<br>
                             Std Error: {result['std_error']:.4f}
                         </div>
                     </div>
@@ -702,7 +910,8 @@ if predict_button:
                         market_name=market_name,
                         base_date=selected_date,
                         feature_names=feature_names,
-                        metadata=metadata
+                        metadata=metadata,
+                        scaler=scaler
                     ),
                     use_container_width=True
                 )
@@ -730,10 +939,11 @@ with st.expander("About This Model", expanded=False):
     with col1:
         st.markdown("""
         ### Model Architecture
-        - **Algorithm**: Random Forest Regressor
-        - **Ensemble Size**: 100+ decision trees
+        - **Algorithm**: XGBoost Regressor
+        - **Ensemble Size**: Gradient boosted trees
         - **Target Variable**: Log-transformed Crop Prices
         - **Input Features**: ~40-50 after encoding
+        - **Regularization**: L1/L2 regularization for robustness
         
         ### Data Source
         - **Dataset**: WFP Food Prices Database
@@ -746,12 +956,13 @@ with st.expander("About This Model", expanded=False):
         st.markdown("""
         ### Key Features
         - **Categorical**: Crop, Unit, Category, Region, Market
-        - **Temporal**: Year, Month, Day of Week
+        - **Temporal**: Year, Month, Day of Week, Cyclical Encoding
+        - **Lag Features**: 12-month price lag, YoY change
         - **Fixed**: Currency (XOF), Country (Senegal)
         
         ### Model Performance
-        - **R² Score**: 0.85+ on test data
-        - **Validation**: 3-fold cross-validation
+        - **Test R² Score**: 0.981 (98.1% variance explained)
+        - **Validation**: TimeSeriesSplit (5-fold)
         - **Hyperparameters**: Optimized via GridSearchCV
         """)
 
@@ -786,16 +997,22 @@ with st.expander("Model Details & Training", expanded=False):
     2. **Feature Engineering**: 
        - One-hot encoding for categorical variables
        - Log transformation for price normalization
-       - Temporal features from date columns
-    3. **Model Training**: Random Forest with hyperparameter tuning
-    4. **Validation**: 3-fold cross-validation for robustness
-    5. **Evaluation**: R², MSE, and residual analysis
+       - Cyclical encoding for temporal features (month_sin, month_cos)
+       - Long-term lag features (12-month lag, YoY change)
+    3. **Model Training**: XGBoost with hyperparameter tuning
+    4. **Validation**: TimeSeriesSplit (5-fold) to prevent data leakage
+    5. **Evaluation**: R², RMSE, MAE, and residual analysis
+    
+    ### Anti-Overfitting Strategies
+    - Uses only 12-month lag (avoids short-term data leakage)
+    - TimeSeriesSplit prevents future data leakage
+    - Strong L1/L2 regularization (reg_alpha, reg_lambda)
+    - Subsample and column sampling for robustness
     
     ### Important Notes
     - Model trained on historical data; future prices may differ
     - External factors (weather, policy, supply) not captured
     - Regular retraining recommended as new data arrives
-    - Use ensemble predictions for additional robustness
     """)
 
 st.divider()
@@ -804,7 +1021,7 @@ st.divider()
 st.markdown("""
     <div style='text-align: center; color: #999; font-size: 0.85em; margin-top: 30px; padding: 20px;'>
         <strong><i class='fa-solid fa-wheat-awn'></i> Crop Price Prediction Model</strong><br>
-        Powered by Random Forest & Streamlit<br>
+        Powered by XGBoost & Streamlit<br>
         <small>Dataset: WFP Food Prices | Region: Senegal</small><br>
         <small>Last Updated: December 2025 | Status: <i class='fa-solid fa-circle-check'></i> Production Ready</small>
     </div>
