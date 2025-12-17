@@ -577,23 +577,30 @@ def create_time_series_forecast(model, input_df, crop_name, admin_region, market
         })
     
     # =============================================
-    # Monthly forecasts (next 12 months) - update lag features
+    # Monthly forecasts (next 12 months) - iterative with lag updates
     # =============================================
+    # Track all monthly log predictions for proper lag chaining
+    all_monthly_log_preds = {0: current_log_price}
+    
     for i in range(1, 13):
         forecast_date = base_date + timedelta(days=30*i)
         
         monthly_input = base_input.copy()
         monthly_input = update_input_features(monthly_input, forecast_date, feature_names)
         
-        # Update lag features for longer forecasts
-        if 'yoy_change' in feature_names:
-            trend_factor = 0.02 * i / 12  # Gradual trend increase
-            monthly_input.loc[0, 'yoy_change'] = initial_yoy_change + trend_factor
+        # For months > 1, we can start incorporating predicted values into lags
+        # But since price_lag_12m is 12-month lag, it stays the same for first 12 months
+        # Only yoy_change should evolve based on recent trend
+        if 'yoy_change' in feature_names and i > 1:
+            # Calculate trend based on recent predictions
+            recent_change = all_monthly_log_preds.get(i-1, current_log_price) - current_log_price
+            monthly_input.loc[0, 'yoy_change'] = initial_yoy_change + (recent_change / i)
         
         pred = predict_with_scaler(model, monthly_input, scaler)
         price = np.expm1(pred)
         
         # Store prediction for future reference
+        all_monthly_log_preds[i] = pred
         monthly_predictions[i] = pred
         
         forecast_data.append({
@@ -602,41 +609,6 @@ def create_time_series_forecast(model, input_df, crop_name, admin_region, market
             'label': forecast_date.strftime('%b %Y'),
             'price': price,
             'days_ahead': 30 * i
-        })
-    
-    # =============================================
-    # Yearly forecasts (next 5 years) - significant lag evolution
-    # =============================================
-    for i in range(1, 6):
-        forecast_date = base_date + timedelta(days=365*i)
-        
-        yearly_input = base_input.copy()
-        yearly_input = update_input_features(yearly_input, forecast_date, feature_names)
-        
-        # Update lag features with iterative predictions
-        if 'price_lag_12m' in feature_names:
-            if 12 in monthly_predictions:
-                yearly_input.loc[0, 'price_lag_12m'] = monthly_predictions[12]
-            else:
-                yearly_input.loc[0, 'price_lag_12m'] = initial_price_lag_12m + (0.02 * i)
-        
-        if 'yoy_change' in feature_names:
-            yearly_input.loc[0, 'yoy_change'] = initial_yoy_change * (0.9 ** i)
-        
-        if 'rolling_std_12m' in feature_names:
-            yearly_input.loc[0, 'rolling_std_12m'] = initial_rolling_std * (1 + 0.1 * i)
-        
-        pred = predict_with_scaler(model, yearly_input, scaler)
-        price = np.expm1(pred)
-        
-        monthly_predictions[i * 12] = pred
-        
-        forecast_data.append({
-            'date': forecast_date,
-            'period': 'Yearly',
-            'label': str(forecast_date.year),
-            'price': price,
-            'days_ahead': 365 * i
         })
     
     # Create figure
@@ -653,8 +625,8 @@ def create_time_series_forecast(model, input_df, crop_name, admin_region, market
     )
     
     # Add traces for each period type with distinct colors
-    periods = ['Daily', 'Weekly', 'Monthly', 'Yearly']
-    colors = ['rgb(70, 130, 180)', 'rgb(34, 139, 34)', 'rgb(148, 103, 189)', 'rgb(214, 39, 40)']
+    periods = ['Daily', 'Weekly', 'Monthly']
+    colors = ['rgb(70, 130, 180)', 'rgb(34, 139, 34)', 'rgb(148, 103, 189)']
     
     for period, color in zip(periods, colors):
         period_data = [d for d in forecast_data if d['period'] == period]
